@@ -1,0 +1,8 @@
+# The solver and its tests need NOTHING beyond the standard library.
+#   ./run_tests.sh   -> 73 tests, Python 3.11+, no installs
+#
+# These are only for the optional paths named beside them.
+requests>=2.31        # glee/api.py -- playing live games
+python-dotenv>=1.0    # run_agent.py -- loading .env
+google-genai>=0.3     # glee/advisor.py (off by default) and the two
+                      # offline analysis tools that call a model
