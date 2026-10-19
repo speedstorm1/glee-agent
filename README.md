@@ -1,14 +1,16 @@
 # A Deterministic Agent for GLEE
 
 The agent behind two entries in the [GLEE competition](https://glee-competition.com),
-`Clod` and `Athena`, and the code behind the paper submitted to the GLEE
+`Clod` and `Athena`, and the code behind *Reading the Mechanism, Not the
+Counterpart: A Deterministic Agent for GLEE*, accepted as a Spotlight in the GLEE
 Competition Paper Track at the 1st Workshop on Interpreting Agent Behavior,
 NeurIPS 2026.
 
 GLEE is three two-player economic games played through natural language:
-bargaining, negotiation and persuasion. Every action here comes from an exact
-solver. There is no model in the decision path, the policy is stateless, and any
-logged game replays turn for turn.
+bargaining, negotiation and persuasion. Every action here comes from a
+deterministic solver. There is no model in the decision path, the policy is
+stateless, and any logged game replays turn for turn under the code version that
+played it.
 
 ```sh
 ./run_tests.sh      # 72 tests, ~3s, standard library only, no installs
@@ -72,7 +74,7 @@ distribution of what the field earns in that exact cell, 360 strata, shipped in
 | `glee/rng.py` | Seeded per-game randomness, `Random(H(game_id ‖ salt))` |
 | `glee/refpool.py`, `glee/data/` | Persuasion reference pool, 360 strata over 41,771 games |
 | `glee/advisor.py` | Optional language-model advisor for message wording. Off by default |
-| `analysis/replay.py` | Pushes a logged state back through the policy and compares the action |
+| `analysis/replay.py` | Pushes a logged bargaining state back through the solver and compares the action |
 | `analysis/percentiles.py` | Recovers a game's percentile from its displayed rating |
 
 Reading order: `glee/transport.py` for how a turn arrives, then whichever solver
@@ -81,11 +83,51 @@ constants in the solvers carry the measurement that produced them.
 
 ## Reproducing
 
-The tests run against the shipped code and need nothing else. The paper's
-replay-fidelity result (527,268 decisions, zero mismatches) is produced by
-`analysis/replay.py --verify`, which reads per-turn logs. Those logs are about
-8 GB and are not in this repository; point `GLEE_LOG_DIR` at your own if you
-have them. Everything under `glee/` and `tests/` runs without them.
+The tests run against the shipped code and need nothing else. The per-turn logs
+are about 8 GB and are not in this repository.
+
+The paper's replay result, 0 mismatches on 527,268 logged decisions across all
+three games, replays each log window under the code version that produced it.
+This repository is a single snapshot of the final code, so it reproduces only the
+decisions logged under that code. With the logs,
+
+```sh
+python analysis/replay.py --verify --logs 'logs/*.moves.jsonl' --since 2026-08-23 --limit 100000
+```
+
+replays the 56,995 bargaining decisions logged from 23 August on (30,676 for
+`Athena`, 26,319 for `Clod`) with 0 mismatches. `replay.py` drives only the
+bargaining solver. The negotiation and persuasion parts of the paper's result were
+replayed at earlier code versions that this snapshot does not contain.
+
+## Known issues
+
+This snapshot is the code the paper analyzes, so these are documented rather than
+fixed:
+
+- **The liquidation offer never reaches the server.** In hopeless open-horizon
+  negotiation games, `negotiation.py` returns an offer on a turn that expects a
+  decision. `sanitise()` in `glee/safety.py` replaces it with a counter at our own
+  value, so the walk-away that should follow a refused liquidation offer never
+  fires. `test_liquidation_offer_before_walking` passes because it checks the
+  solver's output, not the action sent.
+- **Two persuasion buyer rules are unreachable.** Rule 7 (last round) is caught
+  first by the endgame rule, and on the published grid rule 8 (no probe after a
+  refusal) is caught first by the refusal veto.
+- **`analysis/replay.py` covers bargaining only.** It replays every state under
+  the code checked out, so states logged under older code report mismatches that
+  measure code changes, not nondeterminism.
+
+## Citation
+
+```bibtex
+@inproceedings{agrawal2026glee,
+  title     = {Reading the Mechanism, Not the Counterpart: A Deterministic Agent for {GLEE}},
+  author    = {Agrawal, Ayush},
+  booktitle = {NeurIPS 2026 Workshop on Interpreting Agent Behavior (IAB), GLEE Competition Track},
+  year      = {2026}
+}
+```
 
 ## Setup
 
